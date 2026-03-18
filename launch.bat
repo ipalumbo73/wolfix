@@ -11,7 +11,69 @@ echo         ^>_ AI Problem Solver
 echo           with Claude Code
 echo  ============================================
 echo.
+echo   [I] Italiano
+echo   [E] English
+echo.
+set "LANG="
+set /p "LANG=Language / Lingua: "
+if /i "%LANG%"=="E" goto set_en
+goto set_it
 
+:set_en
+set "M1=[1] Full system diagnosis"
+set "M2=[2] Interactive Claude Code"
+set "M3=[3] Analyze log file"
+set "M4=[4] Guided fix"
+set "M5=[5] Collect data for offline analysis"
+set "M6=[6] Connect to remote server (SSH)"
+set "M7=[7] Network diagnosis"
+set "M8=[8] Security analysis"
+set "M0=[0] Exit"
+set "MSG_OK=[OK] Environment configured."
+set "MSG_CHOICE=Choice: "
+set "MSG_INVALID=Invalid choice."
+set "MSG_BACK=Back to menu."
+set "MSG_EXIT=To return to menu: type /exit or press Ctrl+C"
+set "MSG_LOGPATH=Log file path: "
+set "MSG_PROBLEM=Describe the problem: "
+set "MSG_COLLECTING=Collecting system data..."
+set "MSG_SAVED=Data saved in"
+set "MSG_SSHHOST=Host (user@ip): "
+set "MSG_NETSTART=Starting network diagnosis..."
+set "MSG_SECSTART=Starting security analysis..."
+set "MSG_DIAGSTART=Starting full diagnosis..."
+set "MSG_BYE=Goodbye."
+set "MSG_NOTFOUND=File not found."
+goto env_setup
+
+:set_it
+set "M1=[1] Diagnosi completa del sistema"
+set "M2=[2] Claude Code interattivo"
+set "M3=[3] Analizza file di log"
+set "M4=[4] Fix guidato"
+set "M5=[5] Raccogli dati per analisi offline"
+set "M6=[6] Connetti a server remoto SSH"
+set "M7=[7] Diagnosi rete"
+set "M8=[8] Analisi sicurezza"
+set "M0=[0] Esci"
+set "MSG_OK=[OK] Ambiente configurato."
+set "MSG_CHOICE=Scelta: "
+set "MSG_INVALID=Scelta non valida."
+set "MSG_BACK=Tornato al menu."
+set "MSG_EXIT=Per uscire e tornare al menu: scrivi /exit oppure premi Ctrl+C"
+set "MSG_LOGPATH=Percorso del file di log: "
+set "MSG_PROBLEM=Descrivi il problema: "
+set "MSG_COLLECTING=Raccolta dati di sistema..."
+set "MSG_SAVED=Dati salvati in"
+set "MSG_SSHHOST=Host (user@ip): "
+set "MSG_NETSTART=Avvio diagnosi rete..."
+set "MSG_SECSTART=Avvio analisi sicurezza..."
+set "MSG_DIAGSTART=Avvio diagnosi completa..."
+set "MSG_BYE=Arrivederci."
+set "MSG_NOTFOUND=File non trovato."
+goto env_setup
+
+:env_setup
 set "NODE_DIR=%USB_ROOT%\runtime\node-win-x64"
 if not exist "%NODE_DIR%\node.exe" (
     echo [ERRORE] Node.js non trovato in %NODE_DIR%
@@ -33,24 +95,24 @@ set "NPM_CONFIG_PREFIX=%USB_ROOT%\claude-code"
 set "CLAUDE_CONFIG_DIR=%USB_ROOT%\config"
 set "NODE_PATH=%USB_ROOT%\claude-code\lib\node_modules"
 
-echo [OK] Ambiente configurato.
+echo %MSG_OK%
 echo.
 
 :menu
 echo  --------------------------------------------
-echo    [1] Diagnosi completa del sistema
-echo    [2] Claude Code interattivo
-echo    [3] Analizza file di log
-echo    [4] Fix guidato
-echo    [5] Raccogli dati per analisi offline
-echo    [6] Connetti a server remoto SSH
-echo    [7] Diagnosi rete
-echo    [8] Analisi sicurezza
-echo    [0] Esci
+echo    %M1%
+echo    %M2%
+echo    %M3%
+echo    %M4%
+echo    %M5%
+echo    %M6%
+echo    %M7%
+echo    %M8%
+echo    %M0%
 echo  --------------------------------------------
 echo.
 set "CHOICE="
-set /p "CHOICE=Scelta: "
+set /p "CHOICE=%MSG_CHOICE%"
 
 if "%CHOICE%"=="1" goto diagnosi
 if "%CHOICE%"=="2" goto interattivo
@@ -61,105 +123,105 @@ if "%CHOICE%"=="6" goto ssh_remoto
 if "%CHOICE%"=="7" goto diagnosi_rete
 if "%CHOICE%"=="8" goto analisi_sicurezza
 if "%CHOICE%"=="0" goto fine
-echo Scelta non valida.
+echo %MSG_INVALID%
 echo.
 goto menu
 
 :diagnosi
 echo.
-echo Avvio diagnosi completa...
-echo Per uscire e tornare al menu: scrivi /exit oppure premi Ctrl+C
+echo %MSG_DIAGSTART%
+echo %MSG_EXIT%
 echo.
 call "%CLAUDE_BIN%" "Diagnostica questo sistema Windows: servizi, disco, RAM, CPU, Event Log, rete, DNS, aggiornamenti. Proponi fix e chiedi conferma."
 echo.
-echo Tornato al menu.
+echo %MSG_BACK%
 echo.
 goto menu
 
 :interattivo
 echo.
-echo Per uscire e tornare al menu: scrivi /exit oppure premi Ctrl+C
+echo %MSG_EXIT%
 echo.
 call "%CLAUDE_BIN%"
 echo.
-echo Tornato al menu.
+echo %MSG_BACK%
 echo.
 goto menu
 
 :analizza_log
 echo.
 set "LOGPATH="
-set /p "LOGPATH=Percorso del file di log: "
+set /p "LOGPATH=%MSG_LOGPATH%"
 if "%LOGPATH%"=="" goto menu
 if not exist "%LOGPATH%" (
-    echo File non trovato.
+    echo %MSG_NOTFOUND%
     goto menu
 )
-echo Per uscire e tornare al menu: scrivi /exit oppure premi Ctrl+C
+echo %MSG_EXIT%
 echo.
 call "%CLAUDE_BIN%" "Analizza questo file di log, identifica errori e anomalie. File: %LOGPATH%"
 echo.
-echo Tornato al menu.
+echo %MSG_BACK%
 echo.
 goto menu
 
 :fix_guidato
 echo.
 set "PROBLEMA="
-set /p "PROBLEMA=Descrivi il problema: "
+set /p "PROBLEMA=%MSG_PROBLEM%"
 if "%PROBLEMA%"=="" goto menu
-echo Per uscire e tornare al menu: scrivi /exit oppure premi Ctrl+C
+echo %MSG_EXIT%
 echo.
 call "%CLAUDE_BIN%" "Diagnostica e ripara questo problema: %PROBLEMA%. Esegui comandi diagnostici, identifica la causa, proponi il fix e chiedi conferma prima di applicarlo."
 echo.
-echo Tornato al menu.
+echo %MSG_BACK%
 echo.
 goto menu
 
 :raccogli_dati
 echo.
-echo Raccolta dati di sistema...
+echo %MSG_COLLECTING%
 powershell -ExecutionPolicy Bypass -File "%USB_ROOT%\toolkit\scripts\collect-win.ps1" -OutputDir "%USB_ROOT%\toolkit\logs"
-echo Dati salvati in %USB_ROOT%\toolkit\logs
+echo %MSG_SAVED% %USB_ROOT%\toolkit\logs
 echo.
 goto menu
 
 :ssh_remoto
 echo.
 set "SSH_HOST="
-set /p "SSH_HOST=Host (user@ip): "
+set /p "SSH_HOST=%MSG_SSHHOST%"
 if "%SSH_HOST%"=="" goto menu
-echo Per uscire e tornare al menu: scrivi /exit oppure premi Ctrl+C
+echo %MSG_EXIT%
 echo.
 call "%CLAUDE_BIN%" "Collegati via SSH a %SSH_HOST% e diagnostica il sistema remoto. Proponi fix e chiedi conferma."
 echo.
-echo Tornato al menu.
+echo %MSG_BACK%
 echo.
 goto menu
 
 :diagnosi_rete
 echo.
-echo Avvio diagnosi rete...
-echo Per uscire e tornare al menu: scrivi /exit oppure premi Ctrl+C
+echo %MSG_NETSTART%
+echo %MSG_EXIT%
 echo.
 call "%CLAUDE_BIN%" "Esegui una diagnosi completa della rete su questo sistema Windows: interfacce di rete, configurazione IP, DNS, gateway, tabella routing, porte in ascolto, connessioni attive, firewall rules, test connettivita' verso internet e DNS. Identifica problemi e proponi fix."
 echo.
-echo Tornato al menu.
+echo %MSG_BACK%
 echo.
 goto menu
 
 :analisi_sicurezza
 echo.
-echo Avvio analisi sicurezza...
-echo Per uscire e tornare al menu: scrivi /exit oppure premi Ctrl+C
+echo %MSG_SECSTART%
+echo %MSG_EXIT%
 echo.
 call "%CLAUDE_BIN%" "Esegui un'analisi di sicurezza di questo sistema Windows: utenti e gruppi locali, policy password, servizi in esecuzione come SYSTEM, porte aperte, firewall, antivirus, aggiornamenti mancanti, share di rete, task schedulati sospetti, autorun. Segnala vulnerabilita' e proponi remediation."
 echo.
-echo Tornato al menu.
+echo %MSG_BACK%
 echo.
 goto menu
 
 :fine
-echo Arrivederci.
+echo %MSG_BYE%
 timeout /t 2 >nul
 exit /b 0

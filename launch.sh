@@ -71,6 +71,58 @@ KERNEL=$(uname -r)
 RAM_GB=$(free -g 2>/dev/null | awk '/Mem:/{print $2}' || echo "N/A")
 HOSTNAME_VAL=$(hostname)
 
+# === LANGUAGE ===
+set_language() {
+    if [ "$1" = "en" ]; then
+        M1="[1] Full system diagnosis"
+        M2="[2] Interactive Claude Code"
+        M3="[3] Analyze log file"
+        M4="[4] Guided fix (describe problem)"
+        M5="[5] Collect data for offline analysis"
+        M6="[6] Connect to remote server (SSH)"
+        M7="[7] Network diagnosis"
+        M8="[8] Security analysis"
+        M0="[0] Exit"
+        MSG_CHOICE="Choice: "
+        MSG_LOGPATH="Log file path: "
+        MSG_PROBLEM="Describe the problem: "
+        MSG_SSHHOST="Host (user@ip): "
+        MSG_DIAGSTART="[*] Starting full diagnosis..."
+        MSG_NETSTART="[*] Starting network diagnosis..."
+        MSG_SECSTART="[*] Starting security analysis..."
+        MSG_COLLECTING="Collecting system data..."
+        MSG_SAVED="[OK] Data saved in"
+        MSG_NOTFOUND="[ERROR] File not found:"
+        MSG_INVALID="Invalid choice."
+        MSG_BYE="Goodbye. No traces left on the system."
+    else
+        M1="[1] Diagnosi completa del sistema"
+        M2="[2] Claude Code interattivo"
+        M3="[3] Analizza file di log"
+        M4="[4] Fix guidato (descrivi problema)"
+        M5="[5] Raccogli dati per analisi offline"
+        M6="[6] Connetti a server remoto (SSH)"
+        M7="[7] Diagnosi rete"
+        M8="[8] Analisi sicurezza"
+        M0="[0] Esci"
+        MSG_CHOICE="Scelta: "
+        MSG_LOGPATH="Percorso del file di log: "
+        MSG_PROBLEM="Descrivi il problema: "
+        MSG_SSHHOST="Host (user@ip): "
+        MSG_DIAGSTART="[*] Avvio diagnosi completa..."
+        MSG_NETSTART="[*] Avvio diagnosi rete..."
+        MSG_SECSTART="[*] Avvio analisi sicurezza..."
+        MSG_COLLECTING="Raccolta dati di sistema..."
+        MSG_SAVED="[OK] Dati salvati in"
+        MSG_NOTFOUND="[ERRORE] File non trovato:"
+        MSG_INVALID="Scelta non valida."
+        MSG_BYE="Arrivederci. Nessuna traccia lasciata sul sistema."
+    fi
+}
+
+# Default to Italian
+set_language "it"
+
 # === BANNER ===
 show_banner() {
     echo ""
@@ -85,26 +137,36 @@ show_banner() {
     echo -e "${GRAY}  RAM:     ${RAM_GB} GB${NC}"
     echo -e "${GRAY}  Host:    $HOSTNAME_VAL${NC}"
     echo ""
+    echo -e "  ${CYAN}[I]${NC} Italiano  ${CYAN}[E]${NC} English"
+    echo ""
+    echo -n "  Language / Lingua: "
+    read -r lang_choice
+    if [ "$lang_choice" = "E" ] || [ "$lang_choice" = "e" ]; then
+        set_language "en"
+    else
+        set_language "it"
+    fi
+    echo ""
 }
 
 # === MENU ===
 show_menu() {
     echo -e "${YELLOW}  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”${NC}"
-    echo -e "${YELLOW}  â”‚  [1] Diagnosi completa del sistema      â”‚${NC}"
-    echo -e "${YELLOW}  â”‚  [2] Claude Code interattivo            â”‚${NC}"
-    echo -e "${YELLOW}  â”‚  [3] Analizza file di log               â”‚${NC}"
-    echo -e "${YELLOW}  â”‚  [4] Fix guidato (descrivi problema)    â”‚${NC}"
-    echo -e "${YELLOW}  â”‚  [5] Raccogli dati per analisi offline  â”‚${NC}"
-    echo -e "${YELLOW}  â”‚  [6] Connetti a server remoto (SSH)     â”‚${NC}"
-    echo -e "${YELLOW}  â”‚  [7] Diagnosi rete                      â”‚${NC}"
-    echo -e "${YELLOW}  â”‚  [8] Analisi sicurezza                  â”‚${NC}"
-    echo -e "${YELLOW}  â”‚  [0] Esci                               â”‚${NC}"
+    printf "${YELLOW}  │  %-37s│${NC}\n" "$M1"
+    printf "${YELLOW}  │  %-37s│${NC}\n" "$M2"
+    printf "${YELLOW}  │  %-37s│${NC}\n" "$M3"
+    printf "${YELLOW}  │  %-37s│${NC}\n" "$M4"
+    printf "${YELLOW}  │  %-37s│${NC}\n" "$M5"
+    printf "${YELLOW}  │  %-37s│${NC}\n" "$M6"
+    printf "${YELLOW}  │  %-37s│${NC}\n" "$M7"
+    printf "${YELLOW}  │  %-37s│${NC}\n" "$M8"
+    printf "${YELLOW}  │  %-37s│${NC}\n" "$M0"
     echo -e "${YELLOW}  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜${NC}"
 }
 
 # === FUNZIONI ===
 do_diagnosi() {
-    echo -e "${GREEN}[*] Avvio diagnosi completa...${NC}"
+    echo -e "${GREEN}${MSG_DIAGSTART}${NC}"
     claude -p "Sei un esperto di diagnostica sistemi Linux. Questo sistema e':
 - OS: $OS_NAME
 - Kernel: $KERNEL
@@ -125,17 +187,17 @@ Per ogni problema trovato: spiega l'impatto, proponi il fix, chiedi conferma PRI
 }
 
 do_analizza_log() {
-    echo -n "Percorso del file di log: "
+    echo -n "$MSG_LOGPATH"
     read -r log_path
     if [ ! -f "$log_path" ]; then
-        echo -e "${RED}[ERRORE] File non trovato: $log_path${NC}"
+        echo -e "${RED}${MSG_NOTFOUND} $log_path${NC}"
         return
     fi
     claude -p "Analizza il file di log '$log_path'. Identifica errori, warning, pattern anomali. Fornisci un riepilogo strutturato e suggerisci soluzioni."
 }
 
 do_fix_guidato() {
-    echo -n "Descrivi il problema: "
+    echo -n "$MSG_PROBLEM"
     read -r problema
     claude -p "Sei un esperto di diagnostica e riparazione sistemi Linux.
 Sistema: $OS_NAME ($KERNEL) - $HOSTNAME_VAL
@@ -153,24 +215,26 @@ do_raccogli_dati() {
     if [ -f "$script_path" ]; then
         chmod +x "$script_path" 2>/dev/null || true
         bash "$script_path" "$USB_ROOT/toolkit/logs"
-        echo -e "${GREEN}[OK] Dati salvati in $USB_ROOT/toolkit/logs${NC}"
+        echo -e "${GREEN}${MSG_SAVED} $USB_ROOT/toolkit/logs${NC}"
     else
         echo -e "${RED}[ERRORE] Script non trovato: $script_path${NC}"
     fi
 }
 
 do_ssh_remoto() {
-    echo -n "Host (user@ip): "
+    echo -n "$MSG_SSHHOST"
     read -r ssh_host
     # Modalita interattiva invece di -p
     claude "Collegati via SSH a $ssh_host. Diagnostica: OS, servizi, disco, memoria, log errori. Per ogni problema proponi fix e chiedi conferma."
 }
 
 do_diagnosi_rete() {
+    echo -e "${GREEN}${MSG_NETSTART}${NC}"
     claude -p "Diagnosi completa rete Linux: interfacce, IP, DNS, routing, porte in ascolto (ss/netstat), connessioni attive, firewall (iptables/nftables/firewalld), test connettivita'. Identifica problemi e proponi fix."
 }
 
 do_analisi_sicurezza() {
+    echo -e "${GREEN}${MSG_SECSTART}${NC}"
     claude -p "Analisi sicurezza Linux: utenti/gruppi, sudoers, SUID/SGID, porte aperte, servizi esposti, SSH config, fail2ban, aggiornamenti sicurezza, permessi file sensibili (/etc/shadow, /etc/passwd), crontab sospetti, processi anomali. Segnala vulnerabilita' e proponi remediation."
 }
 
@@ -180,7 +244,7 @@ show_banner
 while true; do
     show_menu
     echo ""
-    echo -n "  Scelta: "
+    echo -n "  $MSG_CHOICE"
     read -r choice
     echo ""
 
@@ -194,10 +258,10 @@ while true; do
         7) do_diagnosi_rete ;;
         8) do_analisi_sicurezza ;;
         0)
-            echo -e "${GREEN}Arrivederci. Nessuna traccia lasciata sul sistema.${NC}"
+            echo -e "${GREEN}${MSG_BYE}${NC}"
             exit 0
             ;;
-        *) echo -e "${RED}Scelta non valida.${NC}" ;;
+        *) echo -e "${RED}${MSG_INVALID}${NC}" ;;
     esac
     echo ""
 done

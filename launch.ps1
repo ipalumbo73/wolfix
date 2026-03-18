@@ -40,6 +40,60 @@ $osInfo = Get-CimInstance Win32_OperatingSystem
 $cpuInfo = Get-CimInstance Win32_Processor | Select-Object -First 1
 $ramGB = [math]::Round($osInfo.TotalVisibleMemorySize / 1MB, 1)
 
+# === LANGUAGE SELECTION ===
+$strings = @{}
+
+function Set-Language {
+    param([string]$Lang)
+    if ($Lang -eq "en") {
+        $script:strings = @{
+            M1 = "[1] Full system diagnosis"
+            M2 = "[2] Interactive Claude Code"
+            M3 = "[3] Analyze log file"
+            M4 = "[4] Guided fix (describe problem)"
+            M5 = "[5] Collect data for offline analysis"
+            M6 = "[6] Connect to remote server (SSH)"
+            M7 = "[7] Network diagnosis"
+            M8 = "[8] Security analysis"
+            M0 = "[0] Exit"
+            Choice = "Choice"
+            LogPath = "Log file path"
+            Problem = "Describe the problem"
+            SshHost = "Host (user@ip)"
+            DiagStart = "[*] Starting full diagnosis..."
+            NetStart = "[*] Starting network diagnosis..."
+            SecStart = "[*] Starting security analysis..."
+            Collecting = "Collecting system data..."
+            Saved = "[OK] Data saved in"
+            NotFound = "[ERROR] File not found:"
+            Bye = "Goodbye. No traces left on the system."
+        }
+    } else {
+        $script:strings = @{
+            M1 = "[1] Diagnosi completa del sistema"
+            M2 = "[2] Claude Code interattivo"
+            M3 = "[3] Analizza file di log"
+            M4 = "[4] Fix guidato (descrivi problema)"
+            M5 = "[5] Raccogli dati per analisi offline"
+            M6 = "[6] Connetti a server remoto (SSH)"
+            M7 = "[7] Diagnosi rete"
+            M8 = "[8] Analisi sicurezza"
+            M0 = "[0] Esci"
+            Choice = "Scelta"
+            LogPath = "Percorso del file di log"
+            Problem = "Descrivi il problema"
+            SshHost = "Host (user@ip)"
+            DiagStart = "[*] Avvio diagnosi completa..."
+            NetStart = "[*] Avvio diagnosi rete..."
+            SecStart = "[*] Avvio analisi sicurezza..."
+            Collecting = "Raccolta dati di sistema..."
+            Saved = "[OK] Dati salvati in"
+            NotFound = "[ERRORE] File non trovato:"
+            Bye = "Arrivederci. Nessuna traccia lasciata sul sistema."
+        }
+    }
+}
+
 function Show-Banner {
     Write-Host ""
     Write-Host "  â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—" -ForegroundColor Cyan
@@ -53,20 +107,24 @@ function Show-Banner {
     Write-Host "  RAM:     ${ramGB} GB" -ForegroundColor Gray
     Write-Host "  Host:    $($env:COMPUTERNAME)" -ForegroundColor Gray
     Write-Host ""
+    Write-Host "  [I] Italiano  [E] English" -ForegroundColor White
+    $langChoice = Read-Host "`n  Language / Lingua"
+    if ($langChoice -eq "E" -or $langChoice -eq "e") { Set-Language "en" } else { Set-Language "it" }
+    Write-Host ""
 }
 
 function Show-Menu {
-    Write-Host "  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”" -ForegroundColor Yellow
-    Write-Host "  â”‚  [1] Diagnosi completa del sistema      â”‚" -ForegroundColor Yellow
-    Write-Host "  â”‚  [2] Claude Code interattivo            â”‚" -ForegroundColor Yellow
-    Write-Host "  â”‚  [3] Analizza file di log               â”‚" -ForegroundColor Yellow
-    Write-Host "  â”‚  [4] Fix guidato (descrivi problema)    â”‚" -ForegroundColor Yellow
-    Write-Host "  â”‚  [5] Raccogli dati per analisi offline  â”‚" -ForegroundColor Yellow
-    Write-Host "  â”‚  [6] Connetti a server remoto (SSH)     â”‚" -ForegroundColor Yellow
-    Write-Host "  â”‚  [7] Diagnosi rete                      â”‚" -ForegroundColor Yellow
-    Write-Host "  â”‚  [8] Analisi sicurezza                  â”‚" -ForegroundColor Yellow
-    Write-Host "  â”‚  [0] Esci                               â”‚" -ForegroundColor Yellow
-    Write-Host "  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜" -ForegroundColor Yellow
+    Write-Host "  ┌─────────────────────────────────────────┐" -ForegroundColor Yellow
+    Write-Host ("  │  " + $strings.M1.PadRight(37) + "│") -ForegroundColor Yellow
+    Write-Host ("  │  " + $strings.M2.PadRight(37) + "│") -ForegroundColor Yellow
+    Write-Host ("  │  " + $strings.M3.PadRight(37) + "│") -ForegroundColor Yellow
+    Write-Host ("  │  " + $strings.M4.PadRight(37) + "│") -ForegroundColor Yellow
+    Write-Host ("  │  " + $strings.M5.PadRight(37) + "│") -ForegroundColor Yellow
+    Write-Host ("  │  " + $strings.M6.PadRight(37) + "│") -ForegroundColor Yellow
+    Write-Host ("  │  " + $strings.M7.PadRight(37) + "│") -ForegroundColor Yellow
+    Write-Host ("  │  " + $strings.M8.PadRight(37) + "│") -ForegroundColor Yellow
+    Write-Host ("  │  " + $strings.M0.PadRight(37) + "│") -ForegroundColor Yellow
+    Write-Host "  └─────────────────────────────────────────┘" -ForegroundColor Yellow
 }
 
 function Invoke-Claude {
@@ -75,7 +133,7 @@ function Invoke-Claude {
 }
 
 function Start-Diagnosi {
-    Write-Host "[*] Avvio diagnosi completa..." -ForegroundColor Green
+    Write-Host $strings.DiagStart -ForegroundColor Green
     $prompt = @"
 Sei un esperto di diagnostica sistemi Windows. Questo sistema e':
 - OS: $($osInfo.Caption)
@@ -103,16 +161,16 @@ Per ogni problema trovato:
 }
 
 function Start-AnalisiLog {
-    $logPath = Read-Host "Percorso del file di log"
+    $logPath = Read-Host $strings.LogPath
     if (-not (Test-Path $logPath)) {
-        Write-Host "[ERRORE] File non trovato: $logPath" -ForegroundColor Red
+        Write-Host "$($strings.NotFound) $logPath" -ForegroundColor Red
         return
     }
     Invoke-Claude "Analizza il file di log '$logPath'. Identifica errori, warning, pattern anomali. Fornisci un riepilogo strutturato dei problemi e suggerisci soluzioni concrete."
 }
 
 function Start-FixGuidato {
-    $problema = Read-Host "Descrivi il problema"
+    $problema = Read-Host $strings.Problem
     $prompt = @"
 Sei un esperto di diagnostica e riparazione sistemi Windows.
 Sistema: $($osInfo.Caption) ($($osInfo.Version)) - $($env:COMPUTERNAME)
@@ -135,24 +193,27 @@ function Start-RaccoltaDati {
     $outputDir = Join-Path $UsbRoot "toolkit\logs"
     $scriptPath = Join-Path $UsbRoot "toolkit\scripts\collect-win.ps1"
     if (Test-Path $scriptPath) {
+        Write-Host $strings.Collecting -ForegroundColor Cyan
         & $scriptPath -OutputDir $outputDir
-        Write-Host "[OK] Dati salvati in $outputDir" -ForegroundColor Green
+        Write-Host "$($strings.Saved) $outputDir" -ForegroundColor Green
     } else {
         Write-Host "[ERRORE] Script di raccolta non trovato: $scriptPath" -ForegroundColor Red
     }
 }
 
 function Start-SSHRemoto {
-    $sshHost = Read-Host "Host (user@ip)"
+    $sshHost = Read-Host $strings.SshHost
     # Modalita interattiva: Claude puo gestire la sessione SSH iterativamente
     & $claudeBin "Collegati via SSH a $sshHost. Diagnostica il sistema remoto: OS, servizi, disco, memoria, log errori, sicurezza. Per ogni problema proponi il fix e chiedi conferma."
 }
 
 function Start-DiagnosiRete {
+    Write-Host $strings.NetStart -ForegroundColor Green
     Invoke-Claude "Esegui una diagnosi completa della rete su questo sistema Windows: interfacce di rete, configurazione IP, DNS, gateway, tabella routing, porte in ascolto, connessioni attive, firewall rules, test connettivita' verso internet e DNS. Identifica problemi e proponi fix."
 }
 
 function Start-AnalisiSicurezza {
+    Write-Host $strings.SecStart -ForegroundColor Green
     Invoke-Claude "Esegui un'analisi di sicurezza di questo sistema Windows: utenti e gruppi locali, policy password, servizi in esecuzione come SYSTEM, porte aperte, firewall, antivirus, aggiornamenti mancanti, share di rete, task schedulati sospetti, autorun. Segnala vulnerabilita' e proponi remediation."
 }
 
@@ -173,7 +234,7 @@ if ($Modalita -ne "menu") {
 
 do {
     Show-Menu
-    $choice = Read-Host "`n  Scelta"
+    $choice = Read-Host "`n  $($strings.Choice)"
     Write-Host ""
 
     switch ($choice) {
@@ -185,6 +246,6 @@ do {
         "6" { Start-SSHRemoto }
         "7" { Start-DiagnosiRete }
         "8" { Start-AnalisiSicurezza }
-        "0" { Write-Host "Arrivederci. Nessuna traccia lasciata sul sistema." -ForegroundColor Green }
+        "0" { Write-Host $strings.Bye -ForegroundColor Green }
     }
 } while ($choice -ne "0")
