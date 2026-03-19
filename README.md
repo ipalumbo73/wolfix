@@ -47,7 +47,7 @@ Wolfix is a portable USB toolkit powered by [Claude Code](https://docs.anthropic
 .\setup-usb.ps1 -UsbDrive E
 ```
 
-This downloads Node.js (Windows, Linux, and macOS), installs Claude Code, and copies all toolkit files to the USB drive. You will be prompted to log in during setup.
+This downloads Node.js (Windows, Linux, and macOS), Git Portable (Windows), installs Claude Code, and copies all toolkit files to the USB drive. You will be prompted to log in during setup.
 
 ### Usage
 
@@ -94,18 +94,19 @@ wolfix/
 │   │   ├── collect-macos.sh           # macOS data collection script
 │   │   └── collect-esxi.sh           # ESXi data collection script
 │   └── logs/                          # Collected data output directory
-├── runtime/                           # Node.js portable runtimes (created by setup)
+├── runtime/                           # Portable runtimes (created by setup)
 │   ├── node-win-x64/
 │   ├── node-linux-x64/
 │   ├── node-darwin-x64/               # macOS Intel
-│   └── node-darwin-arm64/             # macOS Apple Silicon (M1/M2/M3/M4)
+│   ├── node-darwin-arm64/             # macOS Apple Silicon (M1/M2/M3/M4)
+│   └── git-win-x64/                   # Git Portable for Windows
 ├── claude-code/                       # Claude Code CLI (created by setup)
 └── config/                            # Authentication and configuration (created by setup)
 ```
 
 ## How It Works
 
-Wolfix bundles a portable Node.js runtime and the Claude Code CLI on a USB drive. When launched, it temporarily adds these to the system PATH without modifying the target machine. Claude Code then runs diagnostic commands, reads their output, identifies problems, and proposes targeted fixes -- all through an interactive conversation. Every destructive action requires explicit user confirmation before execution.
+Wolfix bundles a portable Node.js runtime, Git Portable (for Windows), and the Claude Code CLI on a USB drive. When launched, it temporarily adds these to the system PATH and sets `CLAUDE_CODE_GIT_BASH_PATH` to the portable Git bash -- no need for Git to be installed on the target machine. Claude Code then runs diagnostic commands, reads their output, identifies problems, and proposes targeted fixes -- all through an interactive conversation. Every destructive action requires explicit user confirmation before execution.
 
 The toolkit includes pre-built diagnostic prompts for each supported platform. These prompts instruct Claude Code to perform a structured analysis covering services, storage, memory, logs, networking, and security. You can also open an interactive session to ask Claude Code anything or describe a specific problem for guided troubleshooting.
 
@@ -115,6 +116,7 @@ Wolfix is designed so that **nothing is installed on the target machine**. Node.
 
 When you remove the USB drive, the target machine is exactly as it was before:
 
+- **No software required** -- even Git (needed by Claude Code) runs from the USB drive
 - **No files written to disk** -- no binaries, no libraries, no config files
 - **No registry changes** (Windows) -- no entries added or modified
 - **No system services installed** -- no daemons, no launch agents, no scheduled tasks
@@ -125,7 +127,7 @@ This makes Wolfix ideal for technicians working on client machines where you can
 
 ## Requirements
 
-- **USB drive:** 1 GB minimum free space
+- **USB drive:** 2 GB minimum free space (Git Portable adds ~300 MB)
 - **Internet connection:** required on the target machine for Claude Code API communication
 - **Authentication:** Anthropic API key or Claude Max subscription
 - **Windows:** PowerShell 5.1+ (for setup and PowerShell launcher)
