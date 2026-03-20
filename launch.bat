@@ -270,7 +270,7 @@ set "EJECT_BAT=%TEMP%\wolfix-eject.bat"
     echo del "%EJECT_PS%"
     echo del "%%~f0"
 )
-start "" "%EJECT_BAT%"
+start "" /D "%TEMP%" "%EJECT_BAT%"
 exit /b 0
 
 :fine
