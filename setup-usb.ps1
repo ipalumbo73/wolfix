@@ -197,10 +197,17 @@ if (-not (Test-Path (Join-Path $gitDest "bin\bash.exe"))) {
             Write-Host "[RETRY] Tentativo $i fallito, riprovo..." -ForegroundColor Yellow
         }
     }
-    Write-Host "  Estrazione in $gitDest ..."
+    # Estrai prima in locale (exFAT non supporta estrazione diretta)
+    $gitTempDir = Join-Path $env:TEMP "git-portable-extract"
+    Write-Host "  Estrazione in locale..."
+    if (Test-Path $gitTempDir) { Remove-Item $gitTempDir -Recurse -Force }
+    New-Item -ItemType Directory -Path $gitTempDir -Force | Out-Null
+    & $gitInstaller -o"$gitTempDir" -y 2>&1 | Out-Null
+    Write-Host "  Copia su chiavetta USB (puo' richiedere qualche minuto)..."
     if (-not (Test-Path $gitDest)) { New-Item -ItemType Directory -Path $gitDest -Force | Out-Null }
-    & $gitInstaller -o"$gitDest" -y 2>&1 | Out-Null
+    & robocopy $gitTempDir $gitDest /E /NFL /NDL /NP 2>&1 | Out-Null
     Remove-Item $gitInstaller -Force -ErrorAction SilentlyContinue
+    Remove-Item $gitTempDir -Recurse -Force -ErrorAction SilentlyContinue
     Write-Host "  OK" -ForegroundColor Green
 } else {
     Write-Host "  Gia' presente, skip." -ForegroundColor Yellow
@@ -212,14 +219,21 @@ Write-Host "[7/9] Installazione Claude Code..." -ForegroundColor Green
 $nodePath = Join-Path $UsbRoot "runtime\node-win-x64\node.exe"
 $npmPath = Join-Path $UsbRoot "runtime\node-win-x64\npm.cmd"
 $claudeCodeDir = Join-Path $UsbRoot "claude-code"
+$claudeTempDir = Join-Path $env:TEMP "claude-code-install"
 
 $env:PATH = "$(Join-Path $UsbRoot 'runtime\node-win-x64');$env:PATH"
-$env:NPM_CONFIG_PREFIX = $claudeCodeDir
 
-Write-Host "  Installazione @anthropic-ai/claude-code..."
-& $npmPath install -g @anthropic-ai/claude-code --prefix $claudeCodeDir 2>&1 | ForEach-Object {
+# Installa prima in locale (exFAT corrompe npm install diretto)
+Write-Host "  Installazione @anthropic-ai/claude-code in locale..."
+if (Test-Path $claudeTempDir) { Remove-Item $claudeTempDir -Recurse -Force }
+& $npmPath install -g @anthropic-ai/claude-code --prefix $claudeTempDir 2>&1 | ForEach-Object {
     if ($_ -match "added|updated|claude") { Write-Host "  $_" -ForegroundColor Gray }
 }
+
+# Copia sulla chiavetta con robocopy (affidabile su exFAT)
+Write-Host "  Copia su chiavetta USB..."
+& robocopy $claudeTempDir $claudeCodeDir /E /NFL /NDL /NP /IS /IT 2>&1 | Out-Null
+Remove-Item $claudeTempDir -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host "  OK" -ForegroundColor Green
 
 # --- Login Claude ---
