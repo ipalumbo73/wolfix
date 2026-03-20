@@ -248,30 +248,10 @@ goto menu
 echo.
 echo %MSG_EJECT_SYNC%
 set "USB_DRIVE=%USB_ROOT:~0,2%"
-set "EJECT_PS=%TEMP%\wolfix-eject.ps1"
-set "EJECT_BAT=%TEMP%\wolfix-eject.bat"
-> "%EJECT_PS%" (
-    echo $shell = New-Object -ComObject Shell.Application
-    echo $drive = $shell.Namespace^(17^).ParseName^('%USB_DRIVE%\'^)
-    echo if ^($drive^) { $drive.InvokeVerb^('Eject'^) }
-)
-> "%EJECT_BAT%" (
-    echo @echo off
-    echo timeout /t 2 /nobreak ^>nul
-    echo powershell -NoProfile -ExecutionPolicy Bypass -File "%EJECT_PS%"
-    echo timeout /t 3 /nobreak ^>nul
-    echo if exist "%USB_ROOT%\launch.bat" (
-    echo     echo %MSG_EJECT_FAIL%
-    echo     pause
-    echo ^) else (
-    echo     echo %MSG_EJECT_OK%
-    echo     timeout /t 3 /nobreak ^>nul
-    echo ^)
-    echo del "%EJECT_PS%"
-    echo del "%%~f0"
-)
+set "USB_LETTER=%USB_ROOT:~0,1%"
+copy "%USB_ROOT%\wolfix-eject.ps1" "%TEMP%\wolfix-eject.ps1" >nul 2>&1
 cd /d "%TEMP%"
-start "" /D "%TEMP%" "%EJECT_BAT%"
+start "" /D "%TEMP%" powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\wolfix-eject.ps1" -DriveLetter "%USB_LETTER%" -MsgOk "%MSG_EJECT_OK%" -MsgFail "%MSG_EJECT_FAIL%"
 exit
 
 :fine
