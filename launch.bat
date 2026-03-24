@@ -7,17 +7,17 @@ set "USB_ROOT=%USB_ROOT:~0,-1%"
 
 powershell -NoProfile -Command ^
   "Write-Host ''; " ^
-  "Write-Host '  ================================================' -F Cyan; " ^
-  "Write-Host '   __        _____  _     _____ ___ __  __' -F Cyan; " ^
-  "Write-Host '   \ \      / / _ \| |   |  ___|_ _\ \/ /' -F Cyan; " ^
-  "Write-Host '    \ \ /\ / / | | | |   | |_   | | \  / ' -F Cyan; " ^
-  "Write-Host '     \ V  V /| |_| | |___|  _|  | | /  \ ' -F Cyan; " ^
-  "Write-Host '      \_/\_/  \___/|_____|_|   |___/_/\_\' -F Cyan; " ^
+  "Write-Host '  ================================================' -F Green; " ^
+  "Write-Host '   __        _____  _     _____ ___ __  __' -F Green; " ^
+  "Write-Host '   \ \      / / _ \| |   |  ___|_ _\ \/ /' -F Green; " ^
+  "Write-Host '    \ \ /\ / / | | | |   | |_   | | \  / ' -F Green; " ^
+  "Write-Host '     \ V  V /| |_| | |___|  _|  | | /  \ ' -F Green; " ^
+  "Write-Host '      \_/\_/  \___/|_____|_|   |___/_/\_\' -F Green; " ^
   "Write-Host ''; " ^
-  "Write-Host '    >_ AI Problem Solver with Anthropic' -F Cyan; " ^
+  "Write-Host '    >_ AI Problem Solver with Anthropic' -F Green; " ^
   "Write-Host ''; " ^
   "Write-Host '    v0.1.0' -F DarkGray; " ^
-  "Write-Host '  ================================================' -F Cyan; " ^
+  "Write-Host '  ================================================' -F Green; " ^
   "Write-Host ''; " ^
   "Write-Host '  [I] Italiano  [E] English' -F White; " ^
   "Write-Host ''"
@@ -28,7 +28,7 @@ goto set_it
 
 :set_en
 set "M1=[1] Full system diagnosis"
-set "M2=[2] Interactive Claude Code"
+set "M2=[2] Interactive session"
 set "M3=[3] Analyze log file"
 set "M4=[4] Guided fix"
 set "M5=[5] Collect data for offline analysis"
@@ -59,7 +59,7 @@ goto env_setup
 
 :set_it
 set "M1=[1] Diagnosi completa del sistema"
-set "M2=[2] Claude Code interattivo"
+set "M2=[2] Sessione interattiva"
 set "M3=[3] Analizza file di log"
 set "M4=[4] Fix guidato"
 set "M5=[5] Raccogli dati per analisi offline"
@@ -127,18 +127,11 @@ echo %MSG_OK%
 echo.
 
 :menu
-echo  --------------------------------------------
-echo    %M1%
-echo    %M2%
-echo    %M3%
-echo    %M4%
-echo    %M5%
-echo    %M6%
-echo    %M7%
-echo    %M8%
-echo    %M9%
-echo    %M0%
-echo  --------------------------------------------
+powershell -NoProfile -Command ^
+  "$items = @('%M1%','%M2%','%M3%','%M4%','%M5%','%M6%','%M7%','%M8%','%M9%','%M0%'); " ^
+  "Write-Host '  +-----------------------------------------+' -F Green; " ^
+  "foreach ($i in $items) { Write-Host ('  |  ' + $i.PadRight(37) + '|') -F Green }; " ^
+  "Write-Host '  +-----------------------------------------+' -F Green"
 echo.
 set "CHOICE="
 set /p "CHOICE=%MSG_CHOICE%"
