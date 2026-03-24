@@ -1,19 +1,26 @@
 @echo off
 title Wolfix - AI Diagnostic Toolkit
+chcp 65001 >nul 2>&1
 
 set "USB_ROOT=%~dp0"
 set "USB_ROOT=%USB_ROOT:~0,-1%"
 
-echo.
-echo  ============================================
-echo              W O L F I X
-echo         ^>_ AI Problem Solver
-echo           with Claude Code
-echo  ============================================
-echo.
-echo   [I] Italiano
-echo   [E] English
-echo.
+powershell -NoProfile -Command ^
+  "Write-Host ''; " ^
+  "Write-Host '  ================================================' -F Cyan; " ^
+  "Write-Host '   __        _____  _     _____ ___ __  __' -F Cyan; " ^
+  "Write-Host '   \ \      / / _ \| |   |  ___|_ _\ \/ /' -F Cyan; " ^
+  "Write-Host '    \ \ /\ / / | | | |   | |_   | | \  / ' -F Cyan; " ^
+  "Write-Host '     \ V  V /| |_| | |___|  _|  | | /  \ ' -F Cyan; " ^
+  "Write-Host '      \_/\_/  \___/|_____|_|   |___/_/\_\' -F Cyan; " ^
+  "Write-Host ''; " ^
+  "Write-Host '    >_ AI Problem Solver with Anthropic' -F Cyan; " ^
+  "Write-Host ''; " ^
+  "Write-Host '    v0.1.0' -F DarkGray; " ^
+  "Write-Host '  ================================================' -F Cyan; " ^
+  "Write-Host ''; " ^
+  "Write-Host '  [I] Italiano  [E] English' -F White; " ^
+  "Write-Host ''"
 set "LANG="
 set /p "LANG=Language / Lingua: "
 if /i "%LANG%"=="E" goto set_en
