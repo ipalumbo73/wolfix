@@ -372,6 +372,23 @@ foreach ($file in $filesToCopy) {
     }
 }
 Complete-Step -Step $currentStep -Activity "Launcher e toolkit"
+
+# --- Generate SHA256SUMS ---
+Write-Host "  Generating SHA256SUMS..." -ForegroundColor Gray
+$hashFiles = @("launch.bat", "launch.sh", "launch.ps1", "wolfix-eject.ps1")
+$hashLines = @()
+foreach ($hf in $hashFiles) {
+    $hfPath = Join-Path $UsbRoot $hf
+    if (Test-Path $hfPath) {
+        $hash = (Get-FileHash -Path $hfPath -Algorithm SHA256).Hash.ToLower()
+        $hashLines += "$hash  $hf"
+    }
+}
+if ($hashLines.Count -gt 0) {
+    $hashLines -join "`n" | Set-Content -Path (Join-Path $UsbRoot "SHA256SUMS") -NoNewline -Encoding UTF8
+    Write-Host "  SHA256SUMS generato con $($hashLines.Count) file." -ForegroundColor Gray
+}
+
 Write-Progress -Activity "Wolfix USB Setup" -Completed
 
 # --- Riepilogo ---

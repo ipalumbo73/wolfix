@@ -9,6 +9,23 @@ set -euo pipefail
 # === AUTO-DETECT USB ROOT ===
 USB_ROOT="$(cd "$(dirname "$0")" && pwd)"
 
+# === CHECKSUM VERIFICATION ===
+if [ -f "$USB_ROOT/SHA256SUMS" ]; then
+    if command -v sha256sum &>/dev/null; then
+        if ! (cd "$USB_ROOT" && sha256sum -c SHA256SUMS --status 2>/dev/null); then
+            echo -e "\033[0;31mATTENZIONE: Uno o piu' script sono stati modificati! La chiavetta potrebbe essere stata manomessa.\033[0m"
+            echo -n "Premi Invio per continuare o Ctrl+C per interrompere... "
+            read -r _
+        fi
+    elif command -v shasum &>/dev/null; then
+        if ! (cd "$USB_ROOT" && shasum -a 256 -c SHA256SUMS --status 2>/dev/null); then
+            echo -e "\033[0;31mATTENZIONE: Uno o piu' script sono stati modificati! La chiavetta potrebbe essere stata manomessa.\033[0m"
+            echo -n "Premi Invio per continuare o Ctrl+C per interrompere... "
+            read -r _
+        fi
+    fi
+fi
+
 # === COLORI ===
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -141,6 +158,22 @@ WRAPPER
     chmod +x "$CLAUDE_BIN"
     echo -e "${GREEN}[OK] Motore configurato.${NC}"
 fi
+
+# === SESSION LOGGING ===
+mkdir -p "$USB_ROOT/toolkit/logs"
+LOG_FILE="$USB_ROOT/toolkit/logs/session-$(date +%Y-%m-%d_%H%M%S).log"
+{
+    echo "=== Wolfix Session Log ==="
+    echo "Date: $(date)"
+    echo "Hostname: $(hostname)"
+    echo "OS: $OS_TYPE $(uname -r)"
+    echo "========================="
+    echo ""
+} > "$LOG_FILE"
+
+run_claude() {
+    "$CLAUDE_BIN" "$@" 2>&1 | tee -a "$LOG_FILE"
+}
 
 # === CONFIGURA AMBIENTE ===
 export PATH="/tmp:$NODE_DIR/bin:$PATH"
@@ -294,7 +327,7 @@ show_menu() {
 do_diagnosi() {
     echo -e "${GREEN}${MSG_DIAGSTART}${NC}"
     if [ "$OS_TYPE" = "Darwin" ]; then
-        "$CLAUDE_BIN" -p "You are a macOS diagnostic expert. This system is:
+        run_claude -p "You are a macOS diagnostic expert. This system is:
 - OS: $OS_NAME
 - Kernel: $KERNEL
 - RAM: ${RAM_GB} GB
@@ -312,7 +345,7 @@ Run a complete diagnosis:
 
 For each problem: explain impact, propose fix, ask confirmation BEFORE applying."
     else
-        "$CLAUDE_BIN" -p "Sei un esperto di diagnostica sistemi Linux. Questo sistema e':
+        run_claude -p "Sei un esperto di diagnostica sistemi Linux. Questo sistema e':
 - OS: $OS_NAME
 - Kernel: $KERNEL
 - RAM: ${RAM_GB} GB
@@ -339,13 +372,13 @@ do_analizza_log() {
         echo -e "${RED}${MSG_NOTFOUND} $log_path${NC}"
         return
     fi
-    "$CLAUDE_BIN" -p "Analizza il file di log '$log_path'. Identifica errori, warning, pattern anomali. Fornisci un riepilogo strutturato e suggerisci soluzioni."
+    run_claude -p "Analizza il file di log '$log_path'. Identifica errori, warning, pattern anomali. Fornisci un riepilogo strutturato e suggerisci soluzioni."
 }
 
 do_fix_guidato() {
     echo -n "$MSG_PROBLEM"
     read -r problema
-    "$CLAUDE_BIN" -p "Sei un esperto di diagnostica e riparazione sistemi Linux.
+    run_claude -p "Sei un esperto di diagnostica e riparazione sistemi Linux.
 Sistema: $OS_NAME ($KERNEL) - $HOSTNAME_VAL
 
 Problema: $problema
@@ -375,24 +408,24 @@ do_ssh_remoto() {
     echo -n "$MSG_SSHHOST"
     read -r ssh_host
     # Modalita interattiva invece di -p
-    "$CLAUDE_BIN" "Collegati via SSH a $ssh_host. Diagnostica: OS, servizi, disco, memoria, log errori. Per ogni problema proponi fix e chiedi conferma."
+    run_claude "Collegati via SSH a $ssh_host. Diagnostica: OS, servizi, disco, memoria, log errori. Per ogni problema proponi fix e chiedi conferma."
 }
 
 do_diagnosi_rete() {
     echo -e "${GREEN}${MSG_NETSTART}${NC}"
     if [ "$OS_TYPE" = "Darwin" ]; then
-        "$CLAUDE_BIN" -p "Complete macOS network diagnosis: interfaces (ifconfig), IP config, DNS (scutil --dns), routing (netstat -rn), listening ports (lsof -i -P), active connections, firewall (socketfilterfw), connectivity test. Identify problems and propose fixes."
+        run_claude -p "Complete macOS network diagnosis: interfaces (ifconfig), IP config, DNS (scutil --dns), routing (netstat -rn), listening ports (lsof -i -P), active connections, firewall (socketfilterfw), connectivity test. Identify problems and propose fixes."
     else
-        "$CLAUDE_BIN" -p "Diagnosi completa rete Linux: interfacce, IP, DNS, routing, porte in ascolto (ss/netstat), connessioni attive, firewall (iptables/nftables/firewalld), test connettivita'. Identifica problemi e proponi fix."
+        run_claude -p "Diagnosi completa rete Linux: interfacce, IP, DNS, routing, porte in ascolto (ss/netstat), connessioni attive, firewall (iptables/nftables/firewalld), test connettivita'. Identifica problemi e proponi fix."
     fi
 }
 
 do_analisi_sicurezza() {
     echo -e "${GREEN}${MSG_SECSTART}${NC}"
     if [ "$OS_TYPE" = "Darwin" ]; then
-        "$CLAUDE_BIN" -p "Run a COMPLETE and AUTONOMOUS macOS security analysis without asking for confirmation. Run all checks automatically in sequence. Check: users/groups (dscl), FileVault status, Gatekeeper, SIP (csrutil), firewall, SSH config, open ports, installed profiles (profiles list), suspicious launch agents/daemons, Keychain issues, software updates, remote login, screen sharing, AirDrop settings. Do NOT ask for confirmation, do NOT stop between checks. At the end produce a structured report with severity (CRITICAL/HIGH/MEDIUM/LOW) and remediation for each issue found."
+        run_claude -p "Run a COMPLETE and AUTONOMOUS macOS security analysis without asking for confirmation. Run all checks automatically in sequence. Check: users/groups (dscl), FileVault status, Gatekeeper, SIP (csrutil), firewall, SSH config, open ports, installed profiles (profiles list), suspicious launch agents/daemons, Keychain issues, software updates, remote login, screen sharing, AirDrop settings. Do NOT ask for confirmation, do NOT stop between checks. At the end produce a structured report with severity (CRITICAL/HIGH/MEDIUM/LOW) and remediation for each issue found."
     else
-        "$CLAUDE_BIN" -p "Esegui un'analisi di sicurezza COMPLETA e AUTONOMA di questo sistema Linux senza chiedere conferma. Esegui tutti i controlli in sequenza automaticamente. Controlla: utenti/gruppi, sudoers, SUID/SGID, porte aperte, servizi esposti, SSH config, fail2ban, aggiornamenti sicurezza, permessi file sensibili (/etc/shadow, /etc/passwd), crontab sospetti, processi anomali, SELinux/AppArmor, chiavi SSH autorizzate. NON chiedere conferma, NON fermarti tra un controllo e l'altro. Alla fine produci un report strutturato con severita (CRITICO/ALTO/MEDIO/BASSO) e remediation per ogni problema trovato."
+        run_claude -p "Esegui un'analisi di sicurezza COMPLETA e AUTONOMA di questo sistema Linux senza chiedere conferma. Esegui tutti i controlli in sequenza automaticamente. Controlla: utenti/gruppi, sudoers, SUID/SGID, porte aperte, servizi esposti, SSH config, fail2ban, aggiornamenti sicurezza, permessi file sensibili (/etc/shadow, /etc/passwd), crontab sospetti, processi anomali, SELinux/AppArmor, chiavi SSH autorizzate. NON chiedere conferma, NON fermarti tra un controllo e l'altro. Alla fine produci un report strutturato con severita (CRITICO/ALTO/MEDIO/BASSO) e remediation per ogni problema trovato."
     fi
 }
 
@@ -490,7 +523,7 @@ while true; do
 
     case "$choice" in
         1) do_diagnosi ;;
-        2) "$CLAUDE_BIN" ;;
+        2) echo "[$(date)] Interactive session started" >> "$LOG_FILE"; "$CLAUDE_BIN" ; echo "[$(date)] Interactive session ended" >> "$LOG_FILE" ;;
         3) do_analizza_log ;;
         4) do_fix_guidato ;;
         5) do_raccogli_dati ;;

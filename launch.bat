@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 title Wolfix - AI Diagnostic Toolkit
 chcp 65001 >nul 2>&1
 
@@ -124,8 +125,36 @@ if exist "%GIT_DIR%\bin\bash.exe" (
     set "PATH=%GIT_DIR%\bin;%GIT_DIR%\cmd;%PATH%"
 )
 
+:: === SESSION LOGGING ===
+if not exist "%USB_ROOT%\toolkit\logs" mkdir "%USB_ROOT%\toolkit\logs"
+for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value 2^>nul ^| find "="') do set "DT=%%I"
+set "LOG_FILE=%USB_ROOT%\toolkit\logs\session-%DT:~0,8%-%DT:~8,6%.log"
+echo === Wolfix Session Log === > "%LOG_FILE%"
+echo Date: %DATE% %TIME% >> "%LOG_FILE%"
+echo Hostname: %COMPUTERNAME% >> "%LOG_FILE%"
+echo OS: Windows >> "%LOG_FILE%"
+echo ========================= >> "%LOG_FILE%"
+echo. >> "%LOG_FILE%"
+
 echo %MSG_OK%
 echo.
+
+:: === CHECKSUM VERIFICATION ===
+if exist "%USB_ROOT%\SHA256SUMS" (
+    set "CHECKSUM_FAIL=0"
+    for /f "tokens=1,2" %%A in (%USB_ROOT%\SHA256SUMS) do (
+        if exist "%USB_ROOT%\%%B" (
+            for /f "delims=" %%H in ('powershell -NoProfile -Command "(Get-FileHash -Path '%USB_ROOT%\%%B' -Algorithm SHA256).Hash.ToLower()"') do (
+                if /i not "%%H"=="%%A" set "CHECKSUM_FAIL=1"
+            )
+        )
+    )
+    if "!CHECKSUM_FAIL!"=="1" (
+        powershell -NoProfile -Command "Write-Host 'ATTENZIONE: Uno o piu'' script sono stati modificati! La chiavetta potrebbe essere stata manomessa.' -F Red"
+        echo.
+        pause
+    )
+)
 
 :menu
 powershell -NoProfile -Command ^
@@ -156,7 +185,9 @@ echo.
 echo %MSG_DIAGSTART%
 echo %MSG_EXIT%
 echo.
+echo [%DATE% %TIME%] diagnosi: full system diagnosis >> "%LOG_FILE%"
 call "%CLAUDE_BIN%" "Diagnostica questo sistema Windows: servizi, disco, RAM, CPU, Event Log, rete, DNS, aggiornamenti. Proponi fix e chiedi conferma."
+echo [%DATE% %TIME%] diagnosi: completed >> "%LOG_FILE%"
 echo.
 echo %MSG_BACK%
 echo.
@@ -166,7 +197,9 @@ goto menu
 echo.
 echo %MSG_EXIT%
 echo.
+echo [%DATE% %TIME%] interattivo: interactive session started >> "%LOG_FILE%"
 call "%CLAUDE_BIN%"
+echo [%DATE% %TIME%] interattivo: interactive session ended >> "%LOG_FILE%"
 echo.
 echo %MSG_BACK%
 echo.
@@ -183,7 +216,9 @@ if not exist "%LOGPATH%" (
 )
 echo %MSG_EXIT%
 echo.
+echo [%DATE% %TIME%] analizza_log: %LOGPATH% >> "%LOG_FILE%"
 call "%CLAUDE_BIN%" "Analizza questo file di log, identifica errori e anomalie. File: %LOGPATH%"
+echo [%DATE% %TIME%] analizza_log: completed >> "%LOG_FILE%"
 echo.
 echo %MSG_BACK%
 echo.
@@ -196,7 +231,9 @@ set /p "PROBLEMA=%MSG_PROBLEM%"
 if "%PROBLEMA%"=="" goto menu
 echo %MSG_EXIT%
 echo.
+echo [%DATE% %TIME%] fix_guidato: %PROBLEMA% >> "%LOG_FILE%"
 call "%CLAUDE_BIN%" "Diagnostica e ripara questo problema: %PROBLEMA%. Esegui comandi diagnostici, identifica la causa, proponi il fix e chiedi conferma prima di applicarlo."
+echo [%DATE% %TIME%] fix_guidato: completed >> "%LOG_FILE%"
 echo.
 echo %MSG_BACK%
 echo.
@@ -217,7 +254,9 @@ set /p "SSH_HOST=%MSG_SSHHOST%"
 if "%SSH_HOST%"=="" goto menu
 echo %MSG_EXIT%
 echo.
+echo [%DATE% %TIME%] ssh_remoto: %SSH_HOST% >> "%LOG_FILE%"
 call "%CLAUDE_BIN%" "Collegati via SSH a %SSH_HOST% e diagnostica il sistema remoto. Proponi fix e chiedi conferma."
+echo [%DATE% %TIME%] ssh_remoto: completed >> "%LOG_FILE%"
 echo.
 echo %MSG_BACK%
 echo.
@@ -228,7 +267,9 @@ echo.
 echo %MSG_NETSTART%
 echo %MSG_EXIT%
 echo.
+echo [%DATE% %TIME%] diagnosi_rete: network diagnosis >> "%LOG_FILE%"
 call "%CLAUDE_BIN%" "Esegui una diagnosi completa della rete su questo sistema Windows: interfacce di rete, configurazione IP, DNS, gateway, tabella routing, porte in ascolto, connessioni attive, firewall rules, test connettivita' verso internet e DNS. Identifica problemi e proponi fix."
+echo [%DATE% %TIME%] diagnosi_rete: completed >> "%LOG_FILE%"
 echo.
 echo %MSG_BACK%
 echo.
@@ -239,7 +280,9 @@ echo.
 echo %MSG_SECSTART%
 echo %MSG_EXIT%
 echo.
+echo [%DATE% %TIME%] analisi_sicurezza: security analysis >> "%LOG_FILE%"
 call "%CLAUDE_BIN%" "Esegui un'analisi di sicurezza COMPLETA e AUTONOMA di questo sistema Windows senza chiedere conferma. Esegui tutti i controlli in sequenza automaticamente. Controlla: utenti e gruppi locali, policy password, servizi in esecuzione come SYSTEM, porte aperte, firewall, antivirus, aggiornamenti mancanti, share di rete, task schedulati sospetti, autorun, permessi cartelle condivise, RDP, SMBv1, audit policy. NON chiedere conferma, NON fermarti tra un controllo e l'altro. Alla fine produci un report strutturato con severita (CRITICO/ALTO/MEDIO/BASSO) e remediation per ogni problema trovato."
+echo [%DATE% %TIME%] analisi_sicurezza: completed >> "%LOG_FILE%"
 echo.
 echo %MSG_BACK%
 echo.

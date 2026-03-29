@@ -305,6 +305,23 @@ This Git repository contains only the source code and scripts. The following are
 
 ---
 
+## Limitations & Known Risks
+
+> **Wolfix is not designed for regulated environments (GDPR, HIPAA, PCI-DSS, ISO 27001). Do not use on systems containing sensitive personal data, financial records, or classified information.**
+
+| Risk | Mitigation | Residual risk |
+|------|-----------|---------------|
+| Lost USB with credentials | Encrypt drive (BitLocker/LUKS/FileVault); revoke sessions at console.anthropic.com | Window of exposure between loss and revocation |
+| Data sent to Anthropic | All prompts and command output transit Anthropic's API over HTTPS | Anthropic retains data per its data policy; no on-prem option |
+| No audit trail | v0.2.0 adds session logging to `toolkit/logs/` | Logs are plain text on the USB; no tamper-proof guarantee |
+| Script tampering | v0.2.0 adds SHA256SUMS verification on launch | Attacker with USB write access can also replace SHA256SUMS |
+| Prompt injection via log files | Claude analyzes log content which may contain crafted strings | Model-level guardrails only; no input sanitization on log content |
+| AI hallucination executing wrong command | Claude asks for confirmation before destructive commands | User may approve a plausible-looking but incorrect command |
+
+> **Note:** v0.2.0 introduces checksum verification (`SHA256SUMS`) and session logging (`toolkit/logs/`) to improve auditability and tamper detection.
+
+---
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
