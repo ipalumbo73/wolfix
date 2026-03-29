@@ -118,11 +118,18 @@ function Set-Language {
 
 function Show-Banner {
     Write-Host ""
-    Write-Host "  â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—" -ForegroundColor Cyan
-    Write-Host "  â•’            W O L F I X                    â•’" -ForegroundColor Cyan
-    Write-Host "  ║       >_ AI Problem Solver                ║" -ForegroundColor Cyan
-    Write-Host "  ║         with Claude Code                  ║" -ForegroundColor Cyan
-    Write-Host "  â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•" -ForegroundColor Cyan
+    Write-Host "  ================================================" -ForegroundColor Green
+    Write-Host "  __        _____  _     _____ ___ __  __" -ForegroundColor Green
+    Write-Host "  \ \      / / _ \| |   |  ___|_ _\ \/ /" -ForegroundColor Green
+    Write-Host "   \ \ /\ / / | | | |   | |_   | | \  / " -ForegroundColor Green
+    Write-Host "    \ V  V /| |_| | |___|  _|  | | /  \ " -ForegroundColor Green
+    Write-Host "     \_/\_/  \___/|_____|_|   |___/_/\_\" -ForegroundColor Green
+    Write-Host "" 
+    Write-Host "    >_ AI Problem Solver with Anthropic" -ForegroundColor Green
+    Write-Host "" 
+    Write-Host "    v0.2.0" -ForegroundColor DarkGray
+    Write-Host "    Portable - no installation required" -ForegroundColor Green
+    Write-Host "  ================================================" -ForegroundColor Green
     Write-Host ""
     Write-Host "  Sistema: $($osInfo.Caption)" -ForegroundColor Gray
     Write-Host "  CPU:     $($cpuInfo.Name)" -ForegroundColor Gray

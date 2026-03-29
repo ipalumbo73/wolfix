@@ -16,7 +16,8 @@ powershell -NoProfile -Command ^
   "Write-Host ''; " ^
   "Write-Host '    >_ AI Problem Solver with Anthropic' -F Green; " ^
   "Write-Host ''; " ^
-  "Write-Host '    v0.1.0' -F DarkGray; " ^
+  "Write-Host '    v0.2.0' -F DarkGray; " ^
+  "Write-Host '    Portable - no installation required' -F Green; " ^
   "Write-Host '  ================================================' -F Green; " ^
   "Write-Host ''; " ^
   "Write-Host '  [I] Italiano  [E] English' -F White; " ^

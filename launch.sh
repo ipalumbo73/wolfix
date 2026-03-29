@@ -15,6 +15,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 GRAY='\033[0;37m'
+DARKGRAY='\033[1;30m'
 NC='\033[0m'
 
 # === DETECT OS E ARCHITETTURA ===
@@ -49,39 +50,114 @@ case "$OS_TYPE" in
 esac
 
 # === VERIFICA NODE.JS ===
-# Se il .tar.xz non e' ancora estratto, prova a farlo
-if [ ! -f "$NODE_DIR/bin/node" ]; then
-    TAR_FILE=$(find "$NODE_DIR" -name "*.tar.xz" 2>/dev/null | head -1)
-    if [ -n "$TAR_FILE" ]; then
-        echo -e "${YELLOW}[*] Estrazione Node.js...${NC}"
-        tar -xf "$TAR_FILE" -C "$NODE_DIR" --strip-components=1
-        echo -e "${GREEN}[OK] Node.js estratto.${NC}"
+# Estraiamo SEMPRE in /tmp/ per 3 motivi:
+# 1. exFAT non supporta symlink (npm, npx, corepack sono symlink)
+# 2. exFAT/USB montata con noexec (node non puo' essere eseguito)
+# 3. Disco locale e' molto piu' veloce della USB
+LOCAL_NODE_DIR="/tmp/wolfix-node-runtime"
+LOCAL_NODE="$LOCAL_NODE_DIR/bin/node"
+
+# Estrai solo se non gia' presente in /tmp/
+if [ ! -f "$LOCAL_NODE" ]; then
+    # Cerca il tar sulla chiavetta
+    TAR_FILE=$(find "$NODE_DIR" -name "*.tar.xz" -o -name "*.tar.gz" 2>/dev/null | head -1)
+
+    # Se il node e' gia' estratto sulla USB (setup Windows l'ha messo), copiamo solo il binario
+    if [ -f "$NODE_DIR/bin/node" ] && [ -z "$TAR_FILE" ]; then
+        echo -e "${YELLOW}[*] Preparazione runtime...${NC}"
+        mkdir -p "$LOCAL_NODE_DIR/bin"
+        cp "$NODE_DIR/bin/node" "$LOCAL_NODE"
+        chmod +x "$LOCAL_NODE"
+    elif [ -n "$TAR_FILE" ]; then
+        # Verifica che xz sia disponibile per .tar.xz
+        if [[ "$TAR_FILE" == *.tar.xz ]] && ! command -v xz &>/dev/null; then
+            echo -e "${YELLOW}[*] Installazione xz-utils necessaria per estrarre Node.js...${NC}"
+            if command -v apt-get &>/dev/null; then
+                sudo apt-get update -qq && sudo apt-get install -y -qq xz-utils
+            elif command -v dnf &>/dev/null; then
+                sudo dnf install -y -q xz
+            elif command -v yum &>/dev/null; then
+                sudo yum install -y -q xz
+            elif command -v pacman &>/dev/null; then
+                sudo pacman -S --noconfirm xz
+            elif command -v apk &>/dev/null; then
+                sudo apk add xz
+            else
+                echo -e "${RED}[ERRORE] xz-utils non installato e package manager non riconosciuto.${NC}"
+                echo "Installa manualmente xz-utils e riprova."
+                exit 1
+            fi
+        fi
+        echo -e "${YELLOW}[*] Estrazione Node.js in locale...${NC}"
+        mkdir -p "$LOCAL_NODE_DIR"
+        tar -xf "$TAR_FILE" -C "$LOCAL_NODE_DIR" --strip-components=1
+        chmod +x "$LOCAL_NODE" 2>/dev/null || true
+        if [ -f "$LOCAL_NODE" ]; then
+            echo -e "${GREEN}[OK] Node.js estratto.${NC}"
+        else
+            echo -e "${RED}[ERRORE] Estrazione fallita.${NC}"
+            exit 1
+        fi
     else
         echo -e "${RED}[ERRORE] Node.js non trovato in $NODE_DIR${NC}"
         echo "Esegui setup-usb.ps1 su Windows per preparare la chiavetta."
         exit 1
     fi
+else
+    echo -e "${GREEN}[OK] Node.js gia' pronto in cache locale.${NC}"
 fi
 
-# === FIX PERMESSI (exFAT non ha permessi Unix) ===
-chmod +x "$NODE_DIR/bin/node" 2>/dev/null || true
-chmod +x "$NODE_DIR/bin/npm" 2>/dev/null || true
+# Verifica che node funzioni
+if ! "$LOCAL_NODE" --version &>/dev/null; then
+    echo -e "${RED}[ERRORE] Node.js non funziona. Verifica la versione per questo OS/arch.${NC}"
+    exit 1
+fi
+echo -e "${GREEN}[OK] Node.js $("$LOCAL_NODE" --version) pronto.${NC}"
 
-CLAUDE_BIN="$USB_ROOT/claude-code/bin/claude"
-if [ -f "$CLAUDE_BIN" ]; then
-    chmod +x "$CLAUDE_BIN" 2>/dev/null || true
+# === DETECT STRUTTURA CLAUDE-CODE ===
+# npm su Windows installa in: prefix/claude.cmd + prefix/node_modules/
+# npm su Unix installa in:    prefix/bin/claude + prefix/lib/node_modules/
+
+CLAUDE_CODE_DIR="$USB_ROOT/claude-code"
+CLAUDE_BIN=""
+CLAUDE_CLI_JS=""
+NODE_MODULES_DIR=""
+
+# Cerca cli.js: prima layout Windows (node_modules/), poi Unix (lib/node_modules/)
+if [ -f "$CLAUDE_CODE_DIR/node_modules/@anthropic-ai/claude-code/cli.js" ]; then
+    CLAUDE_CLI_JS="$CLAUDE_CODE_DIR/node_modules/@anthropic-ai/claude-code/cli.js"
+    NODE_MODULES_DIR="$CLAUDE_CODE_DIR/node_modules"
+elif [ -f "$CLAUDE_CODE_DIR/lib/node_modules/@anthropic-ai/claude-code/cli.js" ]; then
+    CLAUDE_CLI_JS="$CLAUDE_CODE_DIR/lib/node_modules/@anthropic-ai/claude-code/cli.js"
+    NODE_MODULES_DIR="$CLAUDE_CODE_DIR/lib/node_modules"
+fi
+
+if [ -n "$CLAUDE_CLI_JS" ]; then
+    CLAUDE_BIN="/tmp/wolfix-claude-wrapper"
+    cat > "$CLAUDE_BIN" << WRAPPER
+#!/bin/sh
+exec "$LOCAL_NODE" "$CLAUDE_CLI_JS" "\$@"
+WRAPPER
+    chmod +x "$CLAUDE_BIN"
+    echo -e "${GREEN}[OK] Motore configurato.${NC}"
 fi
 
 # === CONFIGURA AMBIENTE ===
-export PATH="$NODE_DIR/bin:$USB_ROOT/claude-code/bin:$PATH"
-export NPM_CONFIG_PREFIX="$USB_ROOT/claude-code"
+export PATH="/tmp:$NODE_DIR/bin:$PATH"
+export NPM_CONFIG_PREFIX="$CLAUDE_CODE_DIR"
 export CLAUDE_CONFIG_DIR="$USB_ROOT/config"
-export NODE_PATH="$USB_ROOT/claude-code/lib/node_modules"
+export NODE_PATH="${NODE_MODULES_DIR:-$CLAUDE_CODE_DIR/node_modules}"
 
 # === VERIFICA CLAUDE CODE ===
-if ! command -v claude &>/dev/null; then
+if [ -z "$CLAUDE_BIN" ] || [ ! -f "$CLAUDE_BIN" ]; then
     echo -e "${RED}[ERRORE] Claude Code non trovato.${NC}"
-    echo "Installa con: npm install -g @anthropic-ai/claude-code --prefix $USB_ROOT/claude-code"
+    echo ""
+    echo "Possibili cause:"
+    echo "  - La chiavetta non è stata preparata (esegui setup-usb.ps1 su Windows)"
+    echo "  - La struttura claude-code/ è incompleta"
+    echo ""
+    echo "Contenuto claude-code/:"
+    ls -la "$CLAUDE_CODE_DIR/" 2>/dev/null || echo "  (directory non trovata)"
     exit 1
 fi
 
@@ -127,6 +203,9 @@ set_language() {
         MSG_EJECT_SYNC="Flushing buffers..."
         MSG_EJECT_OK="USB safely ejected. You can remove the drive now."
         MSG_EJECT_FAIL="Could not eject the USB drive. Close all open files and try again."
+        MSG_EJECT_CWD_1="Your terminal is inside the USB directory"
+        MSG_EJECT_CWD_2="which prevents safe ejection."
+        MSG_EJECT_CWD_3="Copy and paste this command:"
     else
         M1="[1] Diagnosi completa del sistema"
         M2="[2] Claude Code interattivo"
@@ -153,6 +232,9 @@ set_language() {
         MSG_EJECT_SYNC="Scaricamento buffer in corso..."
         MSG_EJECT_OK="Chiavetta USB sganciata in sicurezza. Puoi rimuoverla."
         MSG_EJECT_FAIL="Impossibile sganciare la chiavetta. Chiudi tutti i file aperti e riprova."
+        MSG_EJECT_CWD_1="Il terminale e' nella directory della chiavetta"
+        MSG_EJECT_CWD_2="e questo impedisce lo smontaggio."
+        MSG_EJECT_CWD_3="Copia e incolla questo comando:"
     fi
 }
 
@@ -162,11 +244,18 @@ set_language "it"
 # === BANNER ===
 show_banner() {
     echo ""
-    echo -e "${CYAN}  â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—${NC}"
-    echo -e "${CYAN}  â•’            W O L F I X                    â•’${NC}"
-    echo -e "${CYAN}  ║       >_ AI Problem Solver                ║${NC}"
-    echo -e "${CYAN}  ║         with Claude Code                  ║${NC}"
-    echo -e "${CYAN}  â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•${NC}"
+    echo -e "${GREEN}  ================================================${NC}"
+    echo -e "${GREEN}  __        _____  _     _____ ___ __  __${NC}"
+    echo -e "${GREEN}  \\\\ \\\\      / / _ \\\\| |   |  ___|_ _\\\\ \\\\/ /${NC}"
+    echo -e "${GREEN}   \\\\ \\\\ /\\\\ / / | | | |   | |_   | | \\\\  / ${NC}"
+    echo -e "${GREEN}    \\\\ V  V /| |_| | |___|  _|  | | /  \\\\ ${NC}"
+    echo -e "${GREEN}     \\\\_/\\\\_/  \\\\___/|_____|_|   |___/_/\\\\_\\\\${NC}"
+    echo ""
+    echo -e "${GREEN}    >_ AI Problem Solver with Anthropic${NC}"
+    echo ""
+    echo -e "${DARKGRAY}    v0.2.0${NC}"
+    echo -e "${GREEN}    Portable - no installation required${NC}"
+    echo -e "${GREEN}  ================================================${NC}"
     echo ""
     echo -e "${GRAY}  Sistema: $OS_NAME${NC}"
     echo -e "${GRAY}  Kernel:  $KERNEL${NC}"
@@ -187,25 +276,25 @@ show_banner() {
 
 # === MENU ===
 show_menu() {
-    echo -e "${YELLOW}  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”${NC}"
-    printf "${YELLOW}  │  %-37s│${NC}\n" "$M1"
-    printf "${YELLOW}  │  %-37s│${NC}\n" "$M2"
-    printf "${YELLOW}  │  %-37s│${NC}\n" "$M3"
-    printf "${YELLOW}  │  %-37s│${NC}\n" "$M4"
-    printf "${YELLOW}  │  %-37s│${NC}\n" "$M5"
-    printf "${YELLOW}  │  %-37s│${NC}\n" "$M6"
-    printf "${YELLOW}  │  %-37s│${NC}\n" "$M7"
-    printf "${YELLOW}  │  %-37s│${NC}\n" "$M8"
-    printf "${YELLOW}  │  %-37s│${NC}\n" "$M9"
-    printf "${YELLOW}  │  %-37s│${NC}\n" "$M0"
-    echo -e "${YELLOW}  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜${NC}"
+    echo -e "${GREEN}  +-----------------------------------------+${NC}"
+    printf "${GREEN}  |  %-37s|${NC}\n" "$M1"
+    printf "${GREEN}  |  %-37s|${NC}\n" "$M2"
+    printf "${GREEN}  |  %-37s|${NC}\n" "$M3"
+    printf "${GREEN}  |  %-37s|${NC}\n" "$M4"
+    printf "${GREEN}  |  %-37s|${NC}\n" "$M5"
+    printf "${GREEN}  |  %-37s|${NC}\n" "$M6"
+    printf "${GREEN}  |  %-37s|${NC}\n" "$M7"
+    printf "${GREEN}  |  %-37s|${NC}\n" "$M8"
+    printf "${GREEN}  |  %-37s|${NC}\n" "$M9"
+    printf "${GREEN}  |  %-37s|${NC}\n" "$M0"
+    echo -e "${GREEN}  +-----------------------------------------+${NC}"
 }
 
 # === FUNZIONI ===
 do_diagnosi() {
     echo -e "${GREEN}${MSG_DIAGSTART}${NC}"
     if [ "$OS_TYPE" = "Darwin" ]; then
-        claude -p "You are a macOS diagnostic expert. This system is:
+        "$CLAUDE_BIN" -p "You are a macOS diagnostic expert. This system is:
 - OS: $OS_NAME
 - Kernel: $KERNEL
 - RAM: ${RAM_GB} GB
@@ -223,7 +312,7 @@ Run a complete diagnosis:
 
 For each problem: explain impact, propose fix, ask confirmation BEFORE applying."
     else
-        claude -p "Sei un esperto di diagnostica sistemi Linux. Questo sistema e':
+        "$CLAUDE_BIN" -p "Sei un esperto di diagnostica sistemi Linux. Questo sistema e':
 - OS: $OS_NAME
 - Kernel: $KERNEL
 - RAM: ${RAM_GB} GB
@@ -250,13 +339,13 @@ do_analizza_log() {
         echo -e "${RED}${MSG_NOTFOUND} $log_path${NC}"
         return
     fi
-    claude -p "Analizza il file di log '$log_path'. Identifica errori, warning, pattern anomali. Fornisci un riepilogo strutturato e suggerisci soluzioni."
+    "$CLAUDE_BIN" -p "Analizza il file di log '$log_path'. Identifica errori, warning, pattern anomali. Fornisci un riepilogo strutturato e suggerisci soluzioni."
 }
 
 do_fix_guidato() {
     echo -n "$MSG_PROBLEM"
     read -r problema
-    claude -p "Sei un esperto di diagnostica e riparazione sistemi Linux.
+    "$CLAUDE_BIN" -p "Sei un esperto di diagnostica e riparazione sistemi Linux.
 Sistema: $OS_NAME ($KERNEL) - $HOSTNAME_VAL
 
 Problema: $problema
@@ -286,70 +375,106 @@ do_ssh_remoto() {
     echo -n "$MSG_SSHHOST"
     read -r ssh_host
     # Modalita interattiva invece di -p
-    claude "Collegati via SSH a $ssh_host. Diagnostica: OS, servizi, disco, memoria, log errori. Per ogni problema proponi fix e chiedi conferma."
+    "$CLAUDE_BIN" "Collegati via SSH a $ssh_host. Diagnostica: OS, servizi, disco, memoria, log errori. Per ogni problema proponi fix e chiedi conferma."
 }
 
 do_diagnosi_rete() {
     echo -e "${GREEN}${MSG_NETSTART}${NC}"
     if [ "$OS_TYPE" = "Darwin" ]; then
-        claude -p "Complete macOS network diagnosis: interfaces (ifconfig), IP config, DNS (scutil --dns), routing (netstat -rn), listening ports (lsof -i -P), active connections, firewall (socketfilterfw), connectivity test. Identify problems and propose fixes."
+        "$CLAUDE_BIN" -p "Complete macOS network diagnosis: interfaces (ifconfig), IP config, DNS (scutil --dns), routing (netstat -rn), listening ports (lsof -i -P), active connections, firewall (socketfilterfw), connectivity test. Identify problems and propose fixes."
     else
-        claude -p "Diagnosi completa rete Linux: interfacce, IP, DNS, routing, porte in ascolto (ss/netstat), connessioni attive, firewall (iptables/nftables/firewalld), test connettivita'. Identifica problemi e proponi fix."
+        "$CLAUDE_BIN" -p "Diagnosi completa rete Linux: interfacce, IP, DNS, routing, porte in ascolto (ss/netstat), connessioni attive, firewall (iptables/nftables/firewalld), test connettivita'. Identifica problemi e proponi fix."
     fi
 }
 
 do_analisi_sicurezza() {
     echo -e "${GREEN}${MSG_SECSTART}${NC}"
     if [ "$OS_TYPE" = "Darwin" ]; then
-        claude -p "Run a COMPLETE and AUTONOMOUS macOS security analysis without asking for confirmation. Run all checks automatically in sequence. Check: users/groups (dscl), FileVault status, Gatekeeper, SIP (csrutil), firewall, SSH config, open ports, installed profiles (profiles list), suspicious launch agents/daemons, Keychain issues, software updates, remote login, screen sharing, AirDrop settings. Do NOT ask for confirmation, do NOT stop between checks. At the end produce a structured report with severity (CRITICAL/HIGH/MEDIUM/LOW) and remediation for each issue found."
+        "$CLAUDE_BIN" -p "Run a COMPLETE and AUTONOMOUS macOS security analysis without asking for confirmation. Run all checks automatically in sequence. Check: users/groups (dscl), FileVault status, Gatekeeper, SIP (csrutil), firewall, SSH config, open ports, installed profiles (profiles list), suspicious launch agents/daemons, Keychain issues, software updates, remote login, screen sharing, AirDrop settings. Do NOT ask for confirmation, do NOT stop between checks. At the end produce a structured report with severity (CRITICAL/HIGH/MEDIUM/LOW) and remediation for each issue found."
     else
-        claude -p "Esegui un'analisi di sicurezza COMPLETA e AUTONOMA di questo sistema Linux senza chiedere conferma. Esegui tutti i controlli in sequenza automaticamente. Controlla: utenti/gruppi, sudoers, SUID/SGID, porte aperte, servizi esposti, SSH config, fail2ban, aggiornamenti sicurezza, permessi file sensibili (/etc/shadow, /etc/passwd), crontab sospetti, processi anomali, SELinux/AppArmor, chiavi SSH autorizzate. NON chiedere conferma, NON fermarti tra un controllo e l'altro. Alla fine produci un report strutturato con severita (CRITICO/ALTO/MEDIO/BASSO) e remediation per ogni problema trovato."
+        "$CLAUDE_BIN" -p "Esegui un'analisi di sicurezza COMPLETA e AUTONOMA di questo sistema Linux senza chiedere conferma. Esegui tutti i controlli in sequenza automaticamente. Controlla: utenti/gruppi, sudoers, SUID/SGID, porte aperte, servizi esposti, SSH config, fail2ban, aggiornamenti sicurezza, permessi file sensibili (/etc/shadow, /etc/passwd), crontab sospetti, processi anomali, SELinux/AppArmor, chiavi SSH autorizzate. NON chiedere conferma, NON fermarti tra un controllo e l'altro. Alla fine produci un report strutturato con severita (CRITICO/ALTO/MEDIO/BASSO) e remediation per ogni problema trovato."
     fi
 }
 
 do_sgancia_usb() {
-    echo -e "${CYAN}${MSG_EJECT_SYNC}${NC}"
-    sync
-    # Detect mount point and device BEFORE exiting
     local mount_point device
     mount_point=$(df "$USB_ROOT" 2>/dev/null | tail -1 | awk '{print $NF}')
     device=$(df "$USB_ROOT" 2>/dev/null | tail -1 | awk '{print $1}')
-    local eject_script="/tmp/wolfix-eject.sh"
-    local msg_ok="$MSG_EJECT_OK"
-    local msg_fail="$MSG_EJECT_FAIL"
 
-    cat > "$eject_script" << EOFSCRIPT
+    echo -e "${CYAN}${MSG_EJECT_SYNC}${NC}"
+    sync
+
+    # Pulizia file temporanei
+    rm -rf /tmp/wolfix-node-runtime /tmp/wolfix-node /tmp/wolfix-claude-wrapper 2>/dev/null
+
+    # Crea script di eject in /tmp/ (fuori dalla USB)
+    local eject_script="/tmp/wolfix-eject.sh"
+
+    cat > "$eject_script" << 'EOFHEADER'
 #!/usr/bin/env bash
+cd /
+
+EJECT_OS="$1"
+EJECT_DEVICE="$2"
+EJECT_MOUNT="$3"
+EJECT_MSG_OK="$4"
+EJECT_MSG_FAIL="$5"
+
+# Attendi che launch.sh termini
 sleep 2
-if [ "$OS_TYPE" = "Darwin" ]; then
-    if diskutil eject "$device" 2>/dev/null; then
-        echo "$msg_ok"
-    else
-        echo "$msg_fail"
+eject_ok=false
+
+if [ "$EJECT_OS" = "Darwin" ]; then
+    # macOS: force unmount
+    if diskutil unmount force "$EJECT_MOUNT" 2>/dev/null; then
+        disk_id=$(echo "$EJECT_DEVICE" | sed 's/s[0-9]*$//')
+        diskutil eject "$disk_id" 2>/dev/null || true
+        eject_ok=true
     fi
 else
-    ejected=false
+    parent_dev=$(echo "$EJECT_DEVICE" | sed 's/[0-9]*$//')
+
+    # Chiudi tutti i processi che usano la USB (nautilus, shell, ecc.)
+    fuser -km "$EJECT_MOUNT" 2>/dev/null || true
+    sleep 1
+
+    # Metodo 1: udisksctl (non richiede sudo)
     if command -v udisksctl &>/dev/null; then
-        if udisksctl unmount -b "$device" 2>/dev/null && \
-           udisksctl power-off -b "$device" 2>/dev/null; then
-            ejected=true
+        if udisksctl unmount -b "$EJECT_DEVICE" 2>/dev/null; then
+            udisksctl power-off -b "$parent_dev" 2>/dev/null || true
+            eject_ok=true
         fi
     fi
-    if [ "\$ejected" = "false" ]; then
-        if umount "$mount_point" 2>/dev/null || sudo -n umount "$mount_point" 2>/dev/null; then
-            echo "$msg_ok"
-        else
-            echo "$msg_fail"
-        fi
-    else
-        echo "$msg_ok"
+
+    # Metodo 2: gio
+    if [ "$eject_ok" = "false" ] && command -v gio &>/dev/null; then
+        gio mount -u "$EJECT_MOUNT" 2>/dev/null && eject_ok=true
+    fi
+
+    # Metodo 3: lazy unmount (funziona sempre)
+    if [ "$eject_ok" = "false" ]; then
+        sudo -n umount -l "$EJECT_MOUNT" 2>/dev/null && eject_ok=true
+    fi
+    if [ "$eject_ok" = "false" ]; then
+        umount -l "$EJECT_MOUNT" 2>/dev/null && eject_ok=true
     fi
 fi
-sleep 3
-rm -f "\$0"
-EOFSCRIPT
+
+if [ "$eject_ok" = "true" ]; then
+    echo ""
+    echo "$EJECT_MSG_OK"
+else
+    echo ""
+    echo "$EJECT_MSG_FAIL"
+fi
+
+sleep 2
+rm -f "$0"
+EOFHEADER
+
     chmod +x "$eject_script"
-    nohup bash "$eject_script" &
+    # Lancia in background con nohup cosi' non dipende dalla shell corrente
+    nohup bash "$eject_script" "$OS_TYPE" "$device" "$mount_point" "$MSG_EJECT_OK" "$MSG_EJECT_FAIL" >/dev/null 2>&1 &
     exit 0
 }
 
@@ -365,7 +490,7 @@ while true; do
 
     case "$choice" in
         1) do_diagnosi ;;
-        2) claude ;;
+        2) "$CLAUDE_BIN" ;;
         3) do_analizza_log ;;
         4) do_fix_guidato ;;
         5) do_raccogli_dati ;;

@@ -345,6 +345,7 @@ $filesToCopy = @(
     "launch.bat",
     "launch.ps1",
     "launch.sh",
+    "wolfix-eject.ps1",
     "toolkit\prompts\windows-health.md",
     "toolkit\prompts\linux-health.md",
     "toolkit\prompts\esxi-health.md",
